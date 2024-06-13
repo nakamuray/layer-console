@@ -5,6 +5,7 @@ use gtk::{gio, glib};
 mod imp {
     use gdk::RGBA;
     use glib::GString;
+    use gtk::gio::SimpleAction;
     use gtk::subclass::prelude::*;
     use gtk::{gdk, gio, glib, pango};
     use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -52,6 +53,25 @@ mod imp {
                     stack.set_transition_type(gtk::StackTransitionType::SlideUp);
                     stack.set_visible_child_name("terminal");
                 }));
+        }
+        fn setup_actions(&self) {
+            let window = self.obj();
+
+            let action = SimpleAction::new("copy", None);
+            action.connect_activate(
+                glib::clone!(@weak self as this => move |_action, _parameter| {
+                    this.terminal.copy_clipboard_format(vte4::Format::Text);
+                }),
+            );
+            window.add_action(&action);
+
+            let action = SimpleAction::new("paste", None);
+            action.connect_activate(
+                glib::clone!(@weak self as this => move |_action, _parameter| {
+                    this.terminal.paste_clipboard();
+                }),
+            );
+            window.add_action(&action);
         }
         fn set_terminal_colors(&self) {
             // color scheme from alacritty
@@ -104,6 +124,7 @@ mod imp {
             self.parent_constructed();
 
             self.connect_signals();
+            self.setup_actions();
 
             let window = self.obj();
             window.init_layer_shell();

@@ -85,7 +85,7 @@ fn main() {
         .flags(ApplicationFlags::CAN_OVERRIDE_APP_ID | ApplicationFlags::HANDLES_COMMAND_LINE)
         .build();
     add_main_options(&app);
-    app.connect_startup(|_app| {
+    app.connect_startup(|app| {
         let display = gdk::Display::default().expect("can't get display");
         let provider = gtk::CssProvider::new();
         provider.load_from_string(
@@ -106,8 +106,12 @@ fn main() {
             &provider,
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
+
+        app.set_accels_for_action("win.copy", &["<Shift><Primary>c"]);
+        app.set_accels_for_action("win.paste", &["<Shift><Primary>v"]);
     });
     app.connect_activate(on_activate);
     app.connect_command_line(on_commandline);
+
     app.run_with_args(&std::env::args().collect::<Vec<_>>());
 }
