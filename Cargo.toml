@@ -1,0 +1,10 @@
+[package]
+name = "layer-console"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtk = { version = "0.8.2", package = "gtk4", features = ["v4_14"] }
+gtk4-layer-shell = "0.3.0"
+nix = { version = "0.29.0", features = ["user"] }
+vte4 = { version = "0.7.1", features = ["v0_74"] }
