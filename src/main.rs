@@ -25,9 +25,23 @@ fn on_activate(app: &Application) {
 
 fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i32 {
     let options = command_line.options_dict();
+    let position = if options.contains("top") {
+        Some(layer_console::Position::Top)
+    } else if options.contains("bottom") {
+        Some(layer_console::Position::Bottom)
+    } else if options.contains("left") {
+        Some(layer_console::Position::Left)
+    } else if options.contains("right") {
+        Some(layer_console::Position::Right)
+    } else {
+        None
+    };
 
     if let Some(win) = app.active_window() {
         if let Ok(win) = win.clone().downcast::<layer_console::LayerConsoleWindow>() {
+            if let Some(position) = position {
+                win.set_position(position);
+            }
             win.toggle();
         } else {
             panic!("failed to downcast {:?}", win);
@@ -36,6 +50,10 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     }
     let win = layer_console::LayerConsoleWindow::new(app);
     win.set_working_directory(options.lookup::<String>("working-directory").unwrap());
+    if let Some(position) = position {
+        win.set_position(position);
+    }
+
     if options.contains("command") {
         let mut args = command_line
             .arguments()
@@ -72,6 +90,38 @@ fn add_main_options(app: &Application) {
         "Set the wrking directory",
         Some("DIRNAME"),
     );
+    app.add_main_option(
+        "top",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::None,
+        "Set position top (default)",
+        None,
+    );
+    app.add_main_option(
+        "bottom",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::None,
+        "Set position bottom",
+        None,
+    );
+    app.add_main_option(
+        "left",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::None,
+        "Set position left",
+        None,
+    );
+    app.add_main_option(
+        "right",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::None,
+        "Set position right",
+        None,
+    );
 }
 
 fn main() {
@@ -95,9 +145,23 @@ fn main() {
             }
             vte-terminal {
                 border-style: solid;
-                border-width: 1px 1px 0;
                 border-color: grey;
+            }
+            vte-terminal.top {
+                border-width: 0px 1px 1px 1px;
+                padding-top: 0.5em;
+            }
+            vte-terminal.bottom {
+                border-width: 1px 1px 0 1px;
                 padding-bottom: 0.5em;
+            }
+            vte-terminal.left {
+                border-width: 1px 1px 1px 0;
+                padding-left: 0.5em;
+            }
+            vte-terminal.right {
+                border-width: 1px 0px 1px 1px;
+                padding-right: 0.5em;
             }
         "#,
         );

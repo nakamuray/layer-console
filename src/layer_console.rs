@@ -1,15 +1,39 @@
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
+use gtk4_layer_shell::Edge;
+
+#[derive(Default, Debug, Eq, PartialEq, Clone, Copy, glib::Enum)]
+#[repr(u32)]
+#[enum_type(name = "LayerConsolePosition")]
+pub enum Position {
+    #[default]
+    Top = 0,
+    Bottom = 1,
+    Left = 2,
+    Right = 3,
+}
+
+impl Position {
+    pub fn to_edge(&self) -> Edge {
+        match self {
+            Position::Top => Edge::Top,
+            Position::Bottom => Edge::Bottom,
+            Position::Left => Edge::Left,
+            Position::Right => Edge::Right,
+        }
+    }
+}
 
 mod imp {
+    use super::Position;
     use gdk::RGBA;
     use glib::GString;
     use gtk::gio::SimpleAction;
     use gtk::subclass::prelude::*;
     use gtk::{gdk, gio, glib, pango};
     use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
     use vte4::prelude::*;
 
     #[derive(glib::Properties, Default)]
@@ -19,9 +43,28 @@ mod imp {
         terminal: vte4::Terminal,
         #[property(get, set, nullable)]
         working_directory: RefCell<Option<String>>,
+        #[property(get, set = Self::set_position, builder(Position::Top))]
+        position: Cell<Position>,
     }
 
     impl LayerConsoleWindow {
+        fn set_position(&self, position: Position) {
+            if self.position.get() == position {
+                return;
+            }
+            self.position.replace(position);
+            self.set_anchors();
+            self.set_css_class();
+        }
+        fn set_css_class(&self) {
+            let class_name = match self.position.get() {
+                Position::Top => "top",
+                Position::Bottom => "bottom",
+                Position::Left => "left",
+                Position::Right => "right",
+            };
+            self.terminal.set_css_classes(&[class_name]);
+        }
         pub fn spawn(&self, args: &[&str]) {
             self.terminal.spawn_async(
                 vte4::PtyFlags::DEFAULT,
@@ -49,8 +92,14 @@ mod imp {
             });
             let stack = self.stack.clone();
             self.obj()
-                .connect_show(glib::clone!(@weak stack => move |_| {
-                    stack.set_transition_type(gtk::StackTransitionType::SlideUp);
+                .connect_show(glib::clone!(@weak self as this, @weak stack => move |_| {
+                    let transition_type = match this.position.get() {
+                        Position::Top => gtk::StackTransitionType::SlideDown,
+                        Position::Bottom => gtk::StackTransitionType::SlideUp,
+                        Position::Left => gtk::StackTransitionType::SlideRight,
+                        Position::Right => gtk::StackTransitionType::SlideLeft,
+                    };
+                    stack.set_transition_type(transition_type);
                     stack.set_visible_child_name("terminal");
                 }));
         }
@@ -72,6 +121,16 @@ mod imp {
                 }),
             );
             window.add_action(&action);
+        }
+        pub fn set_anchors(&self) {
+            let window = self.obj();
+            for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
+                if edge == self.position.get().to_edge() {
+                    window.set_anchor(edge, true);
+                } else {
+                    window.set_anchor(edge, false);
+                }
+            }
         }
         fn set_terminal_colors(&self) {
             // color scheme from alacritty
@@ -102,8 +161,13 @@ mod imp {
         pub fn toggle(&self) {
             let window = self.obj();
             if window.is_visible() {
-                self.stack
-                    .set_transition_type(gtk::StackTransitionType::SlideDown);
+                let transition_type = match self.position.get() {
+                    Position::Top => gtk::StackTransitionType::SlideUp,
+                    Position::Bottom => gtk::StackTransitionType::SlideDown,
+                    Position::Left => gtk::StackTransitionType::SlideLeft,
+                    Position::Right => gtk::StackTransitionType::SlideRight,
+                };
+                self.stack.set_transition_type(transition_type);
                 self.stack.set_visible_child_name("empty");
             } else {
                 window.present();
@@ -129,7 +193,8 @@ mod imp {
             let window = self.obj();
             window.init_layer_shell();
             window.set_layer(Layer::Top);
-            window.set_anchor(Edge::Bottom, true);
+            self.set_anchors();
+            self.set_css_class();
             // XXX: doesn't niri support OnDemand?
             //window.set_keyboard_mode(KeyboardMode::OnDemand);
             window.set_keyboard_mode(KeyboardMode::Exclusive);

@@ -1,6 +1,6 @@
 # layer-console
 
-Experimental dropdown terminal (actually side up, though) for wayland desktops.
+Experimental dropdown terminal for wayland desktops.
 It uses layer shell protocol so that it may works on any wayland compositor supporting the protocol.
 
 ## usage
