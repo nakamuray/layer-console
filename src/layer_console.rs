@@ -3,6 +3,8 @@ use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk4_layer_shell::Edge;
 
+static DEFAULT_FONT: &str = "Noto Sans Mono CJK JP 13";
+
 #[derive(Default, Debug, Eq, PartialEq, Clone, Copy, glib::Enum)]
 #[repr(u32)]
 #[enum_type(name = "LayerConsolePosition")]
@@ -26,7 +28,7 @@ impl Position {
 }
 
 mod imp {
-    use super::Position;
+    use super::{Position, DEFAULT_FONT};
     use gdk::RGBA;
     use glib::GString;
     use gtk::gio::SimpleAction;
@@ -55,6 +57,10 @@ mod imp {
             self.position.replace(position);
             self.set_anchors();
             self.set_css_class();
+        }
+        pub fn set_font(&self, font: &str) {
+            self.terminal
+                .set_font(Some(&pango::FontDescription::from_string(font)));
         }
         fn set_css_class(&self) {
             let class_name = match self.position.get() {
@@ -214,10 +220,7 @@ mod imp {
             self.stack.add_named(&scrolled, Some("terminal"));
 
             self.terminal.set_size(100, 25);
-            self.terminal
-                .set_font(Some(&pango::FontDescription::from_string(
-                    "Noto Sans Mono CJK JP 13",
-                )));
+            self.set_font(DEFAULT_FONT);
             self.set_terminal_colors();
             self.terminal.set_bold_is_bright(true);
             self.terminal.grab_focus();
@@ -243,5 +246,8 @@ impl LayerConsoleWindow {
     }
     pub fn spawn(&self, args: &[&str]) {
         self.imp().spawn(args)
+    }
+    pub fn set_font(&self, font: &str) {
+        self.imp().set_font(font);
     }
 }

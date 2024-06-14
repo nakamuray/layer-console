@@ -39,6 +39,9 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
 
     if let Some(win) = app.active_window() {
         if let Ok(win) = win.clone().downcast::<layer_console::LayerConsoleWindow>() {
+            if let Some(font) = options.lookup::<String>("font").unwrap() {
+                win.set_font(&font);
+            }
             if let Some(position) = position {
                 win.set_position(position);
             }
@@ -50,6 +53,9 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     }
     let win = layer_console::LayerConsoleWindow::new(app);
     win.set_working_directory(options.lookup::<String>("working-directory").unwrap());
+    if let Some(font) = options.lookup::<String>("font").unwrap() {
+        win.set_font(&font);
+    }
     if let Some(position) = position {
         win.set_position(position);
     }
@@ -89,6 +95,14 @@ fn add_main_options(app: &Application) {
         OptionArg::String,
         "Set the wrking directory",
         Some("DIRNAME"),
+    );
+    app.add_main_option(
+        "font",
+        b'f'.into(),
+        OptionFlags::NONE,
+        OptionArg::String,
+        "Set font",
+        Some("FONT"),
     );
     app.add_main_option(
         "top",
