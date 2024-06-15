@@ -37,6 +37,9 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
         None
     };
 
+    let rows = options.lookup::<i32>("rows").unwrap().map(|i| i.into());
+    let columns = options.lookup::<i32>("columns").unwrap().map(|i| i.into());
+
     if let Some(win) = app.active_window() {
         if let Ok(win) = win.clone().downcast::<layer_console::LayerConsoleWindow>() {
             if let Some(font) = options.lookup::<String>("font").unwrap() {
@@ -44,6 +47,10 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
             }
             if let Some(position) = position {
                 win.set_position(position);
+            }
+            match (columns, rows) {
+                (None, None) => (),
+                _ => win.set_terminal_size(columns, rows),
             }
             win.toggle();
         } else {
@@ -53,6 +60,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     }
     let win = layer_console::LayerConsoleWindow::new(app);
     win.set_working_directory(options.lookup::<String>("working-directory").unwrap());
+    win.set_terminal_size(columns, rows);
     if let Some(font) = options.lookup::<String>("font").unwrap() {
         win.set_font(&font);
     }
@@ -95,6 +103,22 @@ fn add_main_options(app: &Application) {
         OptionArg::String,
         "Set the wrking directory",
         Some("DIRNAME"),
+    );
+    app.add_main_option(
+        "rows",
+        b'r'.into(),
+        OptionFlags::NONE,
+        OptionArg::Int,
+        "Set rows",
+        Some("ROWS"),
+    );
+    app.add_main_option(
+        "columns",
+        b'c'.into(),
+        OptionFlags::NONE,
+        OptionArg::Int,
+        "Set columns",
+        Some("COLUMNS"),
     );
     app.add_main_option(
         "font",

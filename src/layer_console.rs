@@ -2,8 +2,11 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk4_layer_shell::Edge;
+use vte4::TerminalExt;
 
-static DEFAULT_FONT: &str = "Noto Sans Mono CJK JP 13";
+pub static DEFAULT_FONT: &str = "Noto Sans Mono CJK JP 13";
+pub static DEFAULT_ROWS: i64 = 25;
+pub static DEFAULT_COLUMNS: i64 = 100;
 
 #[derive(Default, Debug, Eq, PartialEq, Clone, Copy, glib::Enum)]
 #[repr(u32)]
@@ -28,7 +31,7 @@ impl Position {
 }
 
 mod imp {
-    use super::{Position, DEFAULT_FONT};
+    use super::{Position, DEFAULT_COLUMNS, DEFAULT_FONT, DEFAULT_ROWS};
     use gdk::RGBA;
     use glib::GString;
     use gtk::gio::SimpleAction;
@@ -38,11 +41,11 @@ mod imp {
     use std::cell::{Cell, RefCell};
     use vte4::prelude::*;
 
-    #[derive(glib::Properties, Default)]
+    #[derive(glib::Properties, Default, Debug)]
     #[properties(wrapper_type = super::LayerConsoleWindow)]
     pub struct LayerConsoleWindow {
         stack: gtk::Stack,
-        terminal: vte4::Terminal,
+        pub terminal: vte4::Terminal,
         #[property(get, set, nullable)]
         working_directory: RefCell<Option<String>>,
         #[property(get, set = Self::set_position, builder(Position::Top))]
@@ -219,7 +222,7 @@ mod imp {
             scrolled.set_child(Some(&self.terminal));
             self.stack.add_named(&scrolled, Some("terminal"));
 
-            self.terminal.set_size(100, 25);
+            self.terminal.set_size(DEFAULT_COLUMNS, DEFAULT_ROWS);
             self.set_font(DEFAULT_FONT);
             self.set_terminal_colors();
             self.terminal.set_bold_is_bright(true);
@@ -249,5 +252,11 @@ impl LayerConsoleWindow {
     }
     pub fn set_font(&self, font: &str) {
         self.imp().set_font(font);
+    }
+    pub fn set_terminal_size(&self, columns: Option<i64>, rows: Option<i64>) {
+        let imp = self.imp();
+        let columns = columns.unwrap_or_else(|| imp.terminal.column_count());
+        let rows = rows.unwrap_or_else(|| imp.terminal.row_count());
+        imp.terminal.set_size(columns, rows);
     }
 }
