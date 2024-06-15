@@ -2,7 +2,6 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk4_layer_shell::Edge;
-use vte4::TerminalExt;
 
 pub static DEFAULT_FONT: &str = "Noto Sans Mono CJK JP 13";
 pub static DEFAULT_ROWS: i64 = 25;
@@ -45,11 +44,15 @@ mod imp {
     #[properties(wrapper_type = super::LayerConsoleWindow)]
     pub struct LayerConsoleWindow {
         stack: gtk::Stack,
-        pub terminal: vte4::Terminal,
+        terminal: vte4::Terminal,
         #[property(get, set, nullable)]
         working_directory: RefCell<Option<String>>,
         #[property(get, set = Self::set_position, builder(Position::Top))]
         position: Cell<Position>,
+
+        columns: Cell<i64>,
+        rows: Cell<i64>,
+        is_fullscreen: Cell<bool>,
     }
 
     impl LayerConsoleWindow {
@@ -73,6 +76,26 @@ mod imp {
                 Position::Right => "right",
             };
             self.terminal.set_css_classes(&[class_name]);
+        }
+        pub fn set_terminal_size(&self, columns: Option<i64>, rows: Option<i64>) {
+            let columns = columns.unwrap_or_else(|| self.terminal.column_count());
+            let rows = rows.unwrap_or_else(|| self.terminal.row_count());
+            self.columns.replace(columns);
+            self.rows.replace(rows);
+            self.terminal.set_size(columns, rows);
+        }
+        pub fn fullscreen(&self) {
+            if self.is_fullscreen.get() {
+                self.set_anchors();
+                self.terminal.set_size(self.columns.get(), self.rows.get());
+                self.is_fullscreen.replace(false);
+            } else {
+                let window = self.obj();
+                for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
+                    window.set_anchor(edge, true);
+                }
+                self.is_fullscreen.replace(true);
+            }
         }
         pub fn spawn(&self, args: &[&str]) {
             self.terminal.spawn_async(
@@ -127,6 +150,14 @@ mod imp {
             action.connect_activate(
                 glib::clone!(@weak self as this => move |_action, _parameter| {
                     this.terminal.paste_clipboard();
+                }),
+            );
+            window.add_action(&action);
+
+            let action = SimpleAction::new("fullscreen", None);
+            action.connect_activate(
+                glib::clone!(@weak self as this => move |_action, _parameter| {
+                    this.fullscreen();
                 }),
             );
             window.add_action(&action);
@@ -254,9 +285,9 @@ impl LayerConsoleWindow {
         self.imp().set_font(font);
     }
     pub fn set_terminal_size(&self, columns: Option<i64>, rows: Option<i64>) {
-        let imp = self.imp();
-        let columns = columns.unwrap_or_else(|| imp.terminal.column_count());
-        let rows = rows.unwrap_or_else(|| imp.terminal.row_count());
-        imp.terminal.set_size(columns, rows);
+        self.imp().set_terminal_size(columns, rows);
+    }
+    pub fn fullscreen(&self) {
+        self.imp().fullscreen();
     }
 }

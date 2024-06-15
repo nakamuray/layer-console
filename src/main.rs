@@ -211,6 +211,7 @@ fn main() {
 
         app.set_accels_for_action("win.copy", &["<Shift><Primary>c"]);
         app.set_accels_for_action("win.paste", &["<Shift><Primary>v"]);
+        app.set_accels_for_action("win.fullscreen", &["F11"]);
     });
     app.connect_activate(on_activate);
     app.connect_command_line(on_commandline);
