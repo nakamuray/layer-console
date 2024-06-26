@@ -1,3 +1,4 @@
+mod config;
 mod layer_console;
 mod util;
 
@@ -9,30 +10,18 @@ use gtk::glib::OptionFlags;
 use gtk::prelude::*;
 use gtk::Application;
 
-fn on_activate(app: &Application) {
-    if let Some(win) = app.active_window() {
-        if let Ok(win) = win.clone().downcast::<layer_console::LayerConsoleWindow>() {
-            win.toggle();
-        } else {
-            panic!("failed to downcast {:?}", win);
-        }
-    } else {
-        let win = layer_console::LayerConsoleWindow::new(app);
-        win.spawn(&[&util::get_user_shell()]);
-        win.present();
-    }
-}
+pub const G_LOG_DOMAIN: &str = "layer-console";
 
 fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i32 {
     let options = command_line.options_dict();
     let position = if options.contains("top") {
-        Some(layer_console::Position::Top)
+        Some(config::Position::Top)
     } else if options.contains("bottom") {
-        Some(layer_console::Position::Bottom)
+        Some(config::Position::Bottom)
     } else if options.contains("left") {
-        Some(layer_console::Position::Left)
+        Some(config::Position::Left)
     } else if options.contains("right") {
-        Some(layer_console::Position::Right)
+        Some(config::Position::Right)
     } else {
         None
     };
@@ -46,7 +35,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
                 win.set_font(&font);
             }
             if let Some(position) = position {
-                win.set_position(position);
+                win.set_position(position.as_position());
             }
             match (columns, rows) {
                 (None, None) => (),
@@ -59,13 +48,26 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
         return 0;
     }
     let win = layer_console::LayerConsoleWindow::new(app);
-    win.set_working_directory(options.lookup::<String>("working-directory").unwrap());
+
+    let config = config::load_config(options.lookup::<std::path::PathBuf>("config").unwrap());
+
+    let working_directory = options
+        .lookup::<String>("working-directory")
+        .unwrap()
+        .or(config.working_directory);
+    let rows = rows.or(config.rows);
+    let columns = columns.or(config.columns);
+    let font = options.lookup::<String>("font").unwrap().or(config.font);
+    let position = position.or(config.position);
+    let shell = config.shell.unwrap_or_else(|| util::get_user_shell());
+
+    win.set_working_directory(working_directory);
     win.set_terminal_size(columns, rows);
-    if let Some(font) = options.lookup::<String>("font").unwrap() {
+    if let Some(font) = font {
         win.set_font(&font);
     }
     if let Some(position) = position {
-        win.set_position(position);
+        win.set_position(position.as_position());
     }
 
     if options.contains("command") {
@@ -81,7 +83,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
         }
         win.spawn(&args.iter().map(String::as_str).collect::<Vec<_>>());
     } else {
-        win.spawn(&[&util::get_user_shell()]);
+        win.spawn(&[&shell]);
     }
     win.present();
     return 0;
@@ -160,6 +162,14 @@ fn add_main_options(app: &Application) {
         "Set position right",
         None,
     );
+    app.add_main_option(
+        "config",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::Filename,
+        "config file path",
+        Some("CONFIG"),
+    );
 }
 
 fn main() {
@@ -213,7 +223,6 @@ fn main() {
         app.set_accels_for_action("win.paste", &["<Shift><Primary>v"]);
         app.set_accels_for_action("win.fullscreen", &["F11"]);
     });
-    app.connect_activate(on_activate);
     app.connect_command_line(on_commandline);
 
     app.run_with_args(&std::env::args().collect::<Vec<_>>());

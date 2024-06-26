@@ -3,9 +3,9 @@ use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use gtk4_layer_shell::Edge;
 
-pub static DEFAULT_FONT: &str = "Noto Sans Mono CJK JP 13";
-pub static DEFAULT_ROWS: i64 = 25;
-pub static DEFAULT_COLUMNS: i64 = 100;
+pub const DEFAULT_FONT: &str = "Monospace 13";
+pub const DEFAULT_ROWS: i64 = 25;
+pub const DEFAULT_COLUMNS: i64 = 100;
 
 #[derive(Default, Debug, Eq, PartialEq, Clone, Copy, glib::Enum)]
 #[repr(u32)]

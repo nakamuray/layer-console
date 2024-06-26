@@ -1,0 +1,6 @@
+shell = "/bin/zsh"
+working_directory = "/home"
+rows = 25
+columns = 100
+font = "Monospace 13"
+position = "top"
