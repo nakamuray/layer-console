@@ -112,9 +112,11 @@ mod imp {
         }
         fn connect_signals(&self) {
             let window = self.obj();
-            self.terminal.connect_child_exited(
-                glib::clone!(@weak window => move |_vte, _status| window.close()),
-            );
+            self.terminal.connect_child_exited(glib::clone!(
+                #[weak]
+                window,
+                move |_vte, _status| window.close()
+            ));
             self.stack.connect_transition_running_notify(|stack| {
                 if !stack.is_transition_running()
                     && stack.visible_child_name() == Some(GString::from("empty"))
@@ -123,8 +125,12 @@ mod imp {
                 }
             });
             let stack = self.stack.clone();
-            self.obj()
-                .connect_show(glib::clone!(@weak self as this, @weak stack => move |_| {
+            self.obj().connect_show(glib::clone!(
+                #[weak(rename_to = this)]
+                self,
+                #[weak]
+                stack,
+                move |_| {
                     let transition_type = match this.position.get() {
                         Position::Top => gtk::StackTransitionType::SlideDown,
                         Position::Bottom => gtk::StackTransitionType::SlideUp,
@@ -133,33 +139,40 @@ mod imp {
                     };
                     stack.set_transition_type(transition_type);
                     stack.set_visible_child_name("terminal");
-                }));
+                }
+            ));
         }
         fn setup_actions(&self) {
             let window = self.obj();
 
             let action = SimpleAction::new("copy", None);
-            action.connect_activate(
-                glib::clone!(@weak self as this => move |_action, _parameter| {
+            action.connect_activate(glib::clone!(
+                #[weak(rename_to = this)]
+                self,
+                move |_action, _parameter| {
                     this.terminal.copy_clipboard_format(vte4::Format::Text);
-                }),
-            );
+                }
+            ));
             window.add_action(&action);
 
             let action = SimpleAction::new("paste", None);
-            action.connect_activate(
-                glib::clone!(@weak self as this => move |_action, _parameter| {
+            action.connect_activate(glib::clone!(
+                #[weak(rename_to = this)]
+                self,
+                move |_action, _parameter| {
                     this.terminal.paste_clipboard();
-                }),
-            );
+                }
+            ));
             window.add_action(&action);
 
             let action = SimpleAction::new("fullscreen", None);
-            action.connect_activate(
-                glib::clone!(@weak self as this => move |_action, _parameter| {
+            action.connect_activate(glib::clone!(
+                #[weak(rename_to = this)]
+                self,
+                move |_action, _parameter| {
                     this.fullscreen();
-                }),
-            );
+                }
+            ));
             window.add_action(&action);
         }
         pub fn set_anchors(&self) {
