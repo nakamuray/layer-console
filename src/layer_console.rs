@@ -31,14 +31,75 @@ impl Position {
 
 mod imp {
     use super::{Position, DEFAULT_COLUMNS, DEFAULT_FONT, DEFAULT_ROWS};
+    use crate::G_LOG_DOMAIN;
+    use const_format::concatcp;
     use gdk::RGBA;
     use glib::GString;
-    use gtk::gio::SimpleAction;
+    use gtk::gdk::AppLaunchContext;
+    use gtk::gio::{AppInfo, SimpleAction};
     use gtk::subclass::prelude::*;
     use gtk::{gdk, gio, glib, pango};
     use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
     use std::cell::{Cell, RefCell};
+    use std::collections::HashSet;
     use vte4::prelude::*;
+
+    const PCRE2_MULTILINE: u32 = 0x00000400;
+
+    // regex for url from kgx
+    const USERCHARS: &str = "-[:alnum:]";
+    const USERCHARS_CLASS: &str = concatcp!("[", USERCHARS, "]");
+    const PASSCHARS_CLASS: &str = "[-[:alnum:]\\Q,?;.:/!%$^*&~\"#'\\E]";
+    const HOSTCHARS_CLASS: &str = "[-[:alnum:]]";
+    const HOST: &str = concatcp!(HOSTCHARS_CLASS, "+(\\.", HOSTCHARS_CLASS, "+)*");
+    const PORT: &str = "(?:\\:[[:digit:]]{1,5})?";
+    const PATHCHARS_CLASS: &str = "[-[:alnum:]\\Q_$.+!*,;:@&=?/~#%\\E]";
+    const PATHTERM_CLASS: &str = "[^\\Q]'.}>) \t\r\n,\"\\E]";
+    const SCHEME: &str = concat!(
+        "(?:news:|telnet:|nntp:|file:\\/|https?:|ftps?:|sftp:|webcal:\n",
+        "|irc:|sftp:|ldaps?:|nfs:|smb:|rsync:|",
+        "ssh:|rlogin:|telnet:|git:\n",
+        "|git\\+ssh:|bzr:|bzr\\+ssh:|svn:|svn\\",
+        "+ssh:|hg:|mailto:|magnet:)"
+    );
+    const USERPASS: &str = concatcp!(USERCHARS_CLASS, "+(?:", PASSCHARS_CLASS, "+)?");
+    const URLPATH: &str = concatcp!(
+        "(?:(/",
+        PATHCHARS_CLASS,
+        "+(?:[(]",
+        PATHCHARS_CLASS,
+        "*[)])*",
+        PATHCHARS_CLASS,
+        "*)*",
+        PATHTERM_CLASS,
+        ")?"
+    );
+
+    const LINKS: [&str; 5] = [
+        concatcp!(SCHEME, "//(?:", USERPASS, "\\@)?", HOST, PORT, URLPATH),
+        concatcp!("(?:www|ftp)", HOSTCHARS_CLASS, "*\\.", HOST, PORT, URLPATH),
+        concatcp!(
+            "(?:callto:|h323:|sip:)",
+            USERCHARS_CLASS,
+            "[",
+            USERCHARS,
+            ".]*(?:",
+            PORT,
+            "/[a-z0-9]+)?\\@",
+            HOST
+        ),
+        concatcp!(
+            "(?:mailto:)?",
+            USERCHARS_CLASS,
+            "[",
+            USERCHARS,
+            ".]*\\@",
+            HOSTCHARS_CLASS,
+            "+\\.",
+            HOST
+        ),
+        "(?:news:|man:|info:)[-[:alnum:]\\Q^_{|}~!\"#$%&'()*+,./;:=?`\\E]+",
+    ];
 
     #[derive(glib::Properties, Default, Debug)]
     #[properties(wrapper_type = super::LayerConsoleWindow)]
@@ -53,6 +114,7 @@ mod imp {
         columns: Cell<i64>,
         rows: Cell<i64>,
         is_fullscreen: Cell<bool>,
+        match_ids: std::cell::RefCell<HashSet<i32>>,
     }
 
     impl LayerConsoleWindow {
@@ -109,6 +171,26 @@ mod imp {
                 gio::Cancellable::NONE,
                 |_| {},
             );
+        }
+        fn get_url(&self, x: f64, y: f64) -> Option<GString> {
+            if let Some(hyperlink) = self.terminal.check_hyperlink_at(x, y) {
+                return Some(hyperlink);
+            } else if let (Some(url), id) = self.terminal.check_match_at(x, y) {
+                if self.match_ids.borrow().contains(&id) {
+                    return Some(url);
+                }
+            }
+            None
+        }
+        fn open_url(&self, url: &str) {
+            if let Err(e) = AppInfo::launch_default_for_uri(url, AppLaunchContext::NONE) {
+                glib::g_warning!(
+                    G_LOG_DOMAIN,
+                    "failed to launch app for uri ({}): {}",
+                    url,
+                    e
+                );
+            }
         }
         fn connect_signals(&self) {
             let window = self.obj();
@@ -271,6 +353,53 @@ mod imp {
             self.set_terminal_colors();
             self.terminal.set_bold_is_bright(true);
             self.terminal.grab_focus();
+            self.terminal.set_allow_hyperlink(true);
+
+            for l in LINKS {
+                match vte4::Regex::for_match(l, PCRE2_MULTILINE) {
+                    Err(e) => {
+                        glib::g_warning!(G_LOG_DOMAIN, "link regex failed: {}", e);
+                    }
+                    Ok(regex) => {
+                        let id = self.terminal.match_add_regex(&regex, 0);
+                        self.terminal.match_set_cursor_name(id, "pointer");
+                        self.match_ids.borrow_mut().insert(id);
+                    }
+                }
+            }
+            let gesture = gtk::GestureClick::new();
+            gesture.set_button(1);
+            gesture.connect_pressed(glib::clone!(
+                #[weak(rename_to = this)]
+                self,
+                move |gesture, n, x, y| {
+                    if n > 1 {
+                        gesture.set_state(gtk::EventSequenceState::Denied);
+                        return;
+                    }
+                    if !gesture
+                        .current_event_state()
+                        .contains(gdk::ModifierType::CONTROL_MASK)
+                    {
+                        gesture.set_state(gtk::EventSequenceState::Denied);
+                        return;
+                    }
+                    if let Some(url) = this.get_url(x, y) {
+                        this.open_url(&url);
+                        gesture.set_state(gtk::EventSequenceState::Claimed);
+                        return;
+                    }
+                    gesture.set_state(gtk::EventSequenceState::Denied);
+                }
+            ));
+            self.terminal.add_controller(gesture);
+
+            self.terminal
+                .connect_hyperlink_hover_uri_notify(|terminal| {
+                    terminal.set_tooltip_text(
+                        terminal.hyperlink_hover_uri().as_ref().map(|s| s.as_str()),
+                    );
+                });
         }
     }
     impl WidgetImpl for LayerConsoleWindow {}
