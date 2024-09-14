@@ -162,7 +162,7 @@ mod imp {
         pub fn spawn(&self, args: &[&str]) {
             self.terminal.spawn_async(
                 vte4::PtyFlags::DEFAULT,
-                self.working_directory.borrow().as_ref().map(|s| s.as_str()),
+                self.working_directory.borrow().as_deref(),
                 args,
                 &[],
                 glib::SpawnFlags::DEFAULT,
@@ -396,9 +396,7 @@ mod imp {
 
             self.terminal
                 .connect_hyperlink_hover_uri_notify(|terminal| {
-                    terminal.set_tooltip_text(
-                        terminal.hyperlink_hover_uri().as_ref().map(|s| s.as_str()),
-                    );
+                    terminal.set_tooltip_text(terminal.hyperlink_hover_uri().as_deref());
                 });
         }
     }
