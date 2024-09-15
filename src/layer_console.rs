@@ -330,9 +330,7 @@ mod imp {
             window.set_layer(Layer::Top);
             self.set_anchors();
             self.set_css_class();
-            // XXX: doesn't niri support OnDemand?
-            //window.set_keyboard_mode(KeyboardMode::OnDemand);
-            window.set_keyboard_mode(KeyboardMode::Exclusive);
+            window.set_keyboard_mode(KeyboardMode::OnDemand);
 
             let empty = gtk::Box::new(gtk::Orientation::Vertical, 0);
             self.stack.add_named(&empty, Some("empty"));

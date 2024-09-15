@@ -9,6 +9,7 @@ use gtk::glib::OptionArg;
 use gtk::glib::OptionFlags;
 use gtk::prelude::*;
 use gtk::Application;
+use gtk4_layer_shell::LayerShell;
 
 pub const G_LOG_DOMAIN: &str = "layer-console";
 
@@ -25,6 +26,13 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     } else {
         None
     };
+    let keyboard_mode = if options.contains("exclusive") {
+        Some(config::KeyboardMode::Exclusive)
+    } else if options.contains("on-demand") {
+        Some(config::KeyboardMode::OnDemand)
+    } else {
+        None
+    };
 
     let rows = options.lookup::<i32>("rows").unwrap().map(|i| i.into());
     let columns = options.lookup::<i32>("columns").unwrap().map(|i| i.into());
@@ -36,6 +44,9 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
             }
             if let Some(position) = position {
                 win.set_position(position.as_position());
+            }
+            if let Some(keyboard_mode) = keyboard_mode {
+                win.set_keyboard_mode(keyboard_mode.as_keyboard_mode());
             }
             match (columns, rows) {
                 (None, None) => (),
@@ -59,6 +70,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     let columns = columns.or(config.columns);
     let font = options.lookup::<String>("font").unwrap().or(config.font);
     let position = position.or(config.position);
+    let keyboard_mode = keyboard_mode.or(config.keyboard_mode);
     let shell = config.shell.unwrap_or_else(|| util::get_user_shell());
 
     win.set_working_directory(working_directory);
@@ -68,6 +80,9 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     }
     if let Some(position) = position {
         win.set_position(position.as_position());
+    }
+    if let Some(keyboard_mode) = keyboard_mode {
+        win.set_keyboard_mode(keyboard_mode.as_keyboard_mode());
     }
 
     if options.contains("command") {
@@ -160,6 +175,22 @@ fn add_main_options(app: &Application) {
         OptionFlags::NONE,
         OptionArg::None,
         "Set position right",
+        None,
+    );
+    app.add_main_option(
+        "exclusive",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::None,
+        "Set keyboard mode exclusive",
+        None,
+    );
+    app.add_main_option(
+        "on-demand",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::None,
+        "Set keyboard mode on-demand (default)",
         None,
     );
     app.add_main_option(

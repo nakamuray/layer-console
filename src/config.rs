@@ -16,6 +16,7 @@ pub struct Config {
     pub columns: Option<i64>,
     pub font: Option<String>,
     pub position: Option<Position>,
+    pub keyboard_mode: Option<KeyboardMode>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +35,23 @@ impl Position {
             Position::Bottom => layer_console::Position::Bottom,
             Position::Left => layer_console::Position::Left,
             Position::Right => layer_console::Position::Right,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KeyboardMode {
+    Exclusive,
+    #[serde(rename = "on_demand", alias = "ondemand", alias = "on-demand")]
+    OnDemand,
+}
+
+impl KeyboardMode {
+    pub fn as_keyboard_mode(&self) -> gtk4_layer_shell::KeyboardMode {
+        match self {
+            KeyboardMode::Exclusive => gtk4_layer_shell::KeyboardMode::Exclusive,
+            KeyboardMode::OnDemand => gtk4_layer_shell::KeyboardMode::OnDemand,
         }
     }
 }

@@ -3,4 +3,7 @@ working_directory = "/home"
 rows = 25
 columns = 100
 font = "Monospace 13"
+# top/bottom/left/right
 position = "top"
+# on_demand/exclusive
+keyboard_mode = "on_demand"
