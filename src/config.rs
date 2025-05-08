@@ -17,6 +17,7 @@ pub struct Config {
     pub font: Option<String>,
     pub position: Option<Position>,
     pub keyboard_mode: Option<KeyboardMode>,
+    pub shadow: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]

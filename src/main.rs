@@ -33,6 +33,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     } else {
         None
     };
+    let shadow = options.contains("shadow");
 
     let rows = options.lookup::<i32>("rows").unwrap().map(|i| i.into());
     let columns = options.lookup::<i32>("columns").unwrap().map(|i| i.into());
@@ -71,6 +72,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     let font = options.lookup::<String>("font").unwrap().or(config.font);
     let position = position.or(config.position);
     let keyboard_mode = keyboard_mode.or(config.keyboard_mode);
+    let shadow = shadow || config.shadow.unwrap_or(false);
     let shell = config.shell.unwrap_or_else(|| util::get_user_shell());
 
     win.set_working_directory(working_directory);
@@ -84,6 +86,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
     if let Some(keyboard_mode) = keyboard_mode {
         win.set_keyboard_mode(keyboard_mode.as_keyboard_mode());
     }
+    win.set_shadow(shadow);
 
     if options.contains("command") {
         let mut args = command_line
@@ -201,6 +204,14 @@ fn add_main_options(app: &Application) {
         "config file path",
         Some("CONFIG"),
     );
+    app.add_main_option(
+        "shadow",
+        b'\0'.into(),
+        OptionFlags::NONE,
+        OptionArg::None,
+        "Drop shadow around terminal window",
+        None,
+    );
 }
 
 fn main() {
@@ -225,22 +236,39 @@ fn main() {
             vte-terminal {
                 border-style: solid;
                 border-color: grey;
+                border-width: 1px;
+            }
+            vte-terminal.shadow {
+                margin: 16px;
+                box-shadow: 0 0 8px 4px rgba(0,0,0,0.6);
             }
             vte-terminal.top {
-                border-width: 0px 1px 1px 1px;
+                border-top-width: 0;
                 padding-top: 0.5em;
             }
+            vte-terminal.top.shadow {
+                margin-top: 0;
+            }
             vte-terminal.bottom {
-                border-width: 1px 1px 0 1px;
+                border-bottom-width: 0;
                 padding-bottom: 0.5em;
             }
+            vte-terminal.bottom.shadow {
+                margin-bottom: 0;
+            }
             vte-terminal.left {
-                border-width: 1px 1px 1px 0;
+                border-left-width: 0;
                 padding-left: 0.5em;
             }
+            vte-terminal.left.shadow {
+                margin-left: 0;
+            }
             vte-terminal.right {
-                border-width: 1px 0px 1px 1px;
+                border-right-width: 0;
                 padding-right: 0.5em;
+            }
+            vte-terminal.right.shadow {
+                margin-right: 0;
             }
         "#,
         );

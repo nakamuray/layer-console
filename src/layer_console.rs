@@ -115,6 +115,7 @@ mod imp {
         rows: Cell<i64>,
         is_fullscreen: Cell<bool>,
         match_ids: std::cell::RefCell<HashSet<i32>>,
+        shadow: Cell<bool>,
     }
 
     impl LayerConsoleWindow {
@@ -137,7 +138,11 @@ mod imp {
                 Position::Left => "left",
                 Position::Right => "right",
             };
-            self.terminal.set_css_classes(&[class_name]);
+            let mut class_names = vec![class_name];
+            if self.shadow.get() {
+                class_names.push("shadow");
+            }
+            self.terminal.set_css_classes(&class_names);
         }
         pub fn set_terminal_size(&self, columns: Option<i64>, rows: Option<i64>) {
             let columns = columns.unwrap_or_else(|| self.terminal.column_count());
@@ -145,6 +150,10 @@ mod imp {
             self.columns.replace(columns);
             self.rows.replace(rows);
             self.terminal.set_size(columns, rows);
+        }
+        pub fn set_shadow(&self, shadow: bool) {
+            self.shadow.replace(shadow);
+            self.set_css_class();
         }
         pub fn fullscreen(&self) {
             if self.is_fullscreen.get() {
@@ -424,6 +433,9 @@ impl LayerConsoleWindow {
     }
     pub fn set_terminal_size(&self, columns: Option<i64>, rows: Option<i64>) {
         self.imp().set_terminal_size(columns, rows);
+    }
+    pub fn set_shadow(&self, shadow: bool) {
+        self.imp().set_shadow(shadow);
     }
     pub fn fullscreen(&self) {
         self.imp().fullscreen();
