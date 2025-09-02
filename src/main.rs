@@ -2,18 +2,18 @@ mod config;
 mod layer_console;
 mod util;
 
-use gtk::gdk;
 use gtk::gio::ApplicationCommandLine;
 use gtk::gio::ApplicationFlags;
 use gtk::glib::OptionArg;
 use gtk::glib::OptionFlags;
 use gtk::prelude::*;
 use gtk::Application;
+use gtk::{gdk, glib};
 use gtk4_layer_shell::LayerShell;
 
 pub const G_LOG_DOMAIN: &str = "layer-console";
 
-fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i32 {
+fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> glib::ExitCode {
     let options = command_line.options_dict();
     let position = if options.contains("top") {
         Some(config::Position::Top)
@@ -57,7 +57,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
         } else {
             panic!("failed to downcast {:?}", win);
         }
-        return 0;
+        return glib::ExitCode::new(0);
     }
     let win = layer_console::LayerConsoleWindow::new(app);
 
@@ -104,7 +104,7 @@ fn on_commandline(app: &Application, command_line: &ApplicationCommandLine) -> i
         win.spawn(&[&shell]);
     }
     win.present();
-    return 0;
+    return glib::ExitCode::new(0);
 }
 
 fn add_main_options(app: &Application) {

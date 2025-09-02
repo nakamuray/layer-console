@@ -93,11 +93,16 @@ pub fn load_config(config_path: Option<std::path::PathBuf>) -> Config {
         Ok(text) => text,
     };
 
-    let d = toml::de::Deserializer::new(text);
-    match serde_ignored::deserialize(d, |path| {
-        glib::g_warning!(G_LOG_DOMAIN, "unknown key in config file: `{}`", path)
-    }) {
-        Ok(config) => config,
+    match toml::de::Deserializer::parse(text) {
+        Ok(d) => match serde_ignored::deserialize(d, |path| {
+            glib::g_warning!(G_LOG_DOMAIN, "unknown key in config file: `{}`", path)
+        }) {
+            Ok(config) => config,
+            Err(e) => {
+                glib::g_warning!(G_LOG_DOMAIN, "failed to parse config file: {}", e);
+                Default::default()
+            }
+        },
         Err(e) => {
             glib::g_warning!(G_LOG_DOMAIN, "failed to parse config file: {}", e);
             Default::default()

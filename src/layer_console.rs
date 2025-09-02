@@ -415,7 +415,8 @@ mod imp {
 glib::wrapper! {
     pub struct LayerConsoleWindow(ObjectSubclass<imp::LayerConsoleWindow>)
         @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow,
-        @implements gio::ActionMap, gio::ActionGroup;
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget,
+        gtk::Native, gtk::Root, gtk::ShortcutManager, gio::ActionMap, gio::ActionGroup;
 }
 
 impl LayerConsoleWindow {

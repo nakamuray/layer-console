@@ -5,10 +5,10 @@ edition = "2021"
 
 [dependencies]
 const_format = "0.2.32"
-gtk = { version = "0.9", package = "gtk4", features = ["v4_14"] }
-gtk4-layer-shell = "0.5.0"
-nix = { version = "0.29.0", features = ["user"] }
+gtk = { version = "0.11", package = "gtk4", features = ["v4_18"] }
+gtk4-layer-shell = "0.8.0"
+nix = { version = "0.31.0", features = ["user"] }
 serde = { version = "1.0.203", features = ["derive"] }
 serde_ignored = "0.1.10"
-toml = "0.8.14"
-vte4 = { version = "0.8", features = ["v0_74"] }
+toml = { version = "1.1.0", features = ["serde", "std"] }
+vte4 = { version = "0.10", features = ["v0_78"] }
