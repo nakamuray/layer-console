@@ -234,6 +234,8 @@ fn main() {
                 background-color: transparent;
             }
             vte-terminal {
+                backdrop-filter: blur(12px);
+
                 border-style: solid;
                 border-color: grey;
                 border-width: 1px;
